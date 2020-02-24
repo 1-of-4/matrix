@@ -1,23 +1,4 @@
 pub mod matrix {
-    use crate::matrix::error::OutOfBoundsError;
-
-    pub mod error {
-        use std::fmt;
-        use std::error;
-
-        pub struct OutOfBoundsError;
-        impl fmt::Display for OutOfBoundsError {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                write!(f, "Item specified is outside of matrix!")
-            }
-        }
-
-        impl error::Error for OutOfBoundsError {
-            fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-                None
-            }
-        }
-    }
 
     fn cap(a: usize, b: usize) -> Vec<i32> {
         Vec::with_capacity(a * b - 1)
@@ -45,7 +26,7 @@ pub mod matrix {
 
         pub fn identity(size: usize) -> Matrix {
             let mut entries = cap(size, size);
-            for i in 0..size {
+            for i in 0..=size {
                 entries[i * size - 1] = 1;
             }
             Matrix::from(size, size, entries)
@@ -60,7 +41,7 @@ pub mod matrix {
 //            Matrix::from(cols, rows, entries)
 //        }
 
-        pub fn get(&self, row: usize, col: usize) -> i32 {
+        pub fn entry(&self, row: usize, col: usize) -> i32 {
             self.entries[((row - 1) * self.cols) + col - 1]
         }
 
@@ -88,11 +69,11 @@ mod tests {
     use crate::matrix::*;
     #[test]
     fn from_array() {
-        let mini_mat = [1,2,3,4];
+        let mini_mat = vec![1,2,3,4];
         let my_matrix = Matrix::from(2, 2, mini_mat);
-        assert_eq!(my_matrix.get(1,1), 1);
-        assert_eq!(my_matrix.get(1,2), 2);
-        assert_eq!(my_matrix.get(2,1), 3);
-        assert_eq!(my_matrix.get(2,2), 4);
+        assert_eq!(my_matrix.entry(1,1), 1);
+        assert_eq!(my_matrix.entry(1,2), 2);
+        assert_eq!(my_matrix.entry(2,1), 3);
+        assert_eq!(my_matrix.entry(2,2), 4);
     }
 }
