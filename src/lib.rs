@@ -29,7 +29,7 @@ pub mod matrix {
             }
         }
 
-        pub fn elementary(self) -> Matrix {
+        pub fn elementary(&self) -> Matrix {
             let mut m = Matrix::identity(self.size);
             m.row_op(self);
             m
@@ -76,7 +76,7 @@ pub mod matrix {
             self.entries.clone()
         }
 
-        pub fn row_op(&mut self, op: RowOp) -> &Self {
+        pub fn row_op(&mut self, op: &RowOp) -> &Self {
             match op.operation {
                 Operation::Swap => {
                     for col in 1..=self.c {
@@ -85,11 +85,17 @@ pub mod matrix {
                         self.update(op.row1, col, v2);
                         self.update(op.row2, col, v1);
                     }
-                    self
                 },
-                Operation::Sum => unimplemented!(),
+                Operation::Sum => {
+                    for col in 1..self.c {
+                        let v1 = self.entry(op.row1, col);
+                        let v2 = self.entry(op.row2, col);
+                        self.update(op.row1, col, v1+v2);
+                    }
+                },
                 Operation::Multiply => unimplemented!()
             }
+            self
         }
 
         pub fn transpose(&self) -> Matrix {
@@ -137,15 +143,23 @@ mod tests {
         let original = vec![1,2,3,4,5,6,7,8,9];
         let mut mat = Matrix::from(3,3, original);
         let swap = RowOp::new(Operation::Swap, 3, 1, 3, 0);
-        assert_eq!(mat.row_op(swap).list(), vec![7,8,9,
-                                                 4,5,6,
-                                                 1,2,3]);
+        assert_eq!(mat.row_op(&swap).list(), vec![7,8,9,
+                                                  4,5,6,
+                                                  1,2,3]);
+        assert_eq!(swap.elementary().list(), vec![0,0,1,
+                                                  0,1,0,
+                                                  1,0,0])
     }
 
-    fn swap_identity() {
-        let swap = RowOp::new(Operation::Swap, 3, 1, 2, 0);
-        assert_eq!(swap.elementary().list(), vec![0,1,0,
-                                                  1,0,0,
-                                                  0,0,1])
+    fn sum_rows() {
+        let original = vec![1,2,3,4,5,6,7,8,9];
+        let mut mat = Matrix::from(3,3, original);
+        let sum = RowOp::new(Operation::Sum, 3, 1, 2, 0);
+        assert_eq!(mat.row_op(&sum).list(), vec![5,7,9,
+                                                 4,5,6,
+                                                 7,8,9]);
+        assert_eq!(sum.elementary().list(), vec![1,1,0,
+                                                 0,1,0,
+                                                 0,0,1])
     }
 }
