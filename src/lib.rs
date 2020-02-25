@@ -1,7 +1,7 @@
 pub mod matrix {
 
     fn v(r: usize, c: usize) -> Vec<i32> {
-        vec![0; r*c - 1]
+        vec![0; r*c]
     }
 
     pub struct Matrix {
@@ -13,32 +13,36 @@ pub mod matrix {
     pub enum Operation {
         Swap,
         Sum,
-        Reduce
+        Multiply
     }
 
-    pub struct RowOperation {
-        op: Operation,
-        r1: usize,
-        r2: Option<usize>,
-        co: Option<usize>
+    pub struct RowOp {
+        operation: Operation,
+        row1: usize,
+        row2: usize,
+        coefficient: usize
     }
 
-    impl RowOperation {
-        pub fn new(op: Operation, r1: usize, r2: Option<usize>, co: Option<usize>) -> RowOperation {
-            RowOperation {
-                op,
-                r1,
-                r2,
-                co
+    impl RowOp {
+        pub fn new(operation: Operation, row1: usize, row2: usize, coefficient: usize) -> RowOp {
+            RowOp {
+                operation,
+                row1,
+                row2,
+                coefficient
             }
         }
 
-        pub fn elementary(&self, size: usize) -> Matrix {
+        pub fn elementary(self, size: usize) -> Matrix {
             Matrix::identity(size).row_op(self)
         }
     }
 
     impl Matrix {
+
+        pub fn list(&self) -> &Vec<i32> {
+            &self.entries
+        }
 
         pub fn from(r: usize, c: usize, entries: Vec<i32>) -> Matrix {
             Matrix {
@@ -52,12 +56,12 @@ pub mod matrix {
             Matrix::from(r, c, v(r, c))
         }
 
-        pub fn identity(size: usize) -> Matrix {
-            let mut entries = v(size, size);
-            for i in 0..=size {
-                entries[i*size - 1] = 1;
+        pub fn identity(s: usize) -> Matrix {
+            let mut entries = v(s, s);
+            for i in 0..s {
+                entries[i*(s+1)] = 1;
             }
-            Matrix::from(size, size, entries)
+            Matrix::from(s, s, entries)
         }
 
         pub fn entry(&self, r: usize, c: usize) -> i32 {
@@ -88,15 +92,24 @@ pub mod matrix {
             unimplemented!()
         }
 
-        pub fn row_op(&self, row_op: &RowOperation) -> Matrix {
-            match row_op.op {
-                Operation::Swap => unimplemented!(),
+        pub fn row_op(self, op: RowOp) -> Matrix {
+            match op.operation {
+                Operation::Swap => {
+                    let mut copy = self.entries.clone();
+                    let r1 = self.row(op.row1);
+                    let r2 = self.row(op.row2);
+                    for i in 0..self.c {
+                        copy[r1[i].0] = r2[i].1;
+                        copy[r2[i].0] = r1[i].1;
+                    }
+                    Matrix::from(self.r, self.c, copy)
+                },
                 Operation::Sum => unimplemented!(),
-                Operation::Reduce => unimplemented!()
+                Operation::Multiply => unimplemented!()
             }
         }
 
-        pub fn rref(&self) -> (Matrix, Vec<RowOperation>) {
+        pub fn rref(&self) -> (Matrix, Vec<RowOp>) {
             unimplemented!()
         }
 
@@ -110,6 +123,17 @@ pub mod matrix {
 #[cfg(test)]
 mod tests {
     use crate::matrix::*;
+
+    #[test]
+    fn identity() {
+        let identity = Matrix::identity(2);
+        assert_eq!(identity.list(), &vec![1,0,
+                                          0,1]);
+        let identity = Matrix::identity(3);
+        assert_eq!(identity.list(), &vec![1,0,0,
+                                          0,1,0,
+                                          0,0,1]);
+    }
 
     #[test]
     fn from_array() {
@@ -133,9 +157,19 @@ mod tests {
 
     #[test]
     fn get_col() {
-        let vec = vec![1,3,5,7];
+        let vec = vec![1,3, 5,7];
         let mat = Matrix::from(2,2, vec);
         let c1 = mat.col(1);
         assert_eq!(c1, vec![(0,1), (2,5)])
+    }
+
+    #[test]
+    fn swap_rows() {
+        let matrix = Matrix::from(2,2, vec![1,2,3,4]);
+        let original_r1 = matrix.row(1);
+        let swap = RowOp::new(Operation::Swap, 1, 2, 0);
+        let matrix = matrix.row_op(swap);
+        let new_r2 = matrix.row(2);
+        assert_eq!(original_r1, new_r2)
     }
 }
