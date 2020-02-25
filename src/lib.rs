@@ -10,13 +10,13 @@ pub mod matrix {
         entries: Vec<i32>
     }
 
-    enum Operation {
+    pub enum Operation {
         Swap,
         Sum,
         Reduce
     }
 
-    struct RowOperation {
+    pub struct RowOperation {
         op: Operation,
         r1: usize,
         r2: Option<usize>,
@@ -64,12 +64,24 @@ pub mod matrix {
             self.entries[((r - 1) * self.c) + c - 1]
         }
 
-        pub fn row(&self, i: usize) -> Vec<(usize, i32)> {
-            unimplemented!()
+        pub fn row(&self, r: usize) -> Vec<(usize, i32)> { //todo: validate that r < num rows
+            let start = (r-1) * self.c;
+            let end = r * self.c;
+            self.entries
+                .clone() //todo: get rid of this cancer
+                .into_iter()
+                .enumerate()
+                .filter(|i| i.0 >= start && i.0 < end)
+                .collect()
         }
 
-        pub fn col(&self, i: usize) -> Vec<(usize, i32)> {
-            unimplemented!()
+        pub fn col(&self, c: usize) -> Vec<(usize, i32)> { //todo: validate that c < num cols
+            self.entries
+                .clone() //todo: get rid of this cancer
+                .into_iter()
+                .enumerate()
+                .filter(|i| i.0 % self.c == c-1)
+                .collect()
         }
 
         pub fn transpose(&self) -> Matrix {
@@ -87,6 +99,10 @@ pub mod matrix {
         pub fn rref(&self) -> (Matrix, Vec<RowOperation>) {
             unimplemented!()
         }
+
+        pub fn submatrix(&self, r1: usize, r2: usize) -> Matrix {
+            unimplemented!()
+        }
     }
 }
 
@@ -94,6 +110,7 @@ pub mod matrix {
 #[cfg(test)]
 mod tests {
     use crate::matrix::*;
+
     #[test]
     fn from_array() {
         let vec = vec![1, 2, 3, 4];
@@ -102,5 +119,23 @@ mod tests {
         assert_eq!(mat.entry(1, 2), 2);
         assert_eq!(mat.entry(2, 1), 3);
         assert_eq!(mat.entry(2, 2), 4);
+    }
+
+    #[test]
+    fn get_row() {
+        let vec = vec![2,4,6,8];
+        let mat = Matrix::from(2,2, vec);
+        let r1 = mat.row(1);
+        assert_eq!(r1.iter().map(|t| t.1).collect::<Vec<i32>>(), vec![2,4]);
+        let r2 = mat.row(2);
+        assert_eq!(r2, vec![(2,6),(3,8)])
+    }
+
+    #[test]
+    fn get_col() {
+        let vec = vec![1,3,5,7];
+        let mat = Matrix::from(2,2, vec);
+        let c1 = mat.col(1);
+        assert_eq!(c1, vec![(0,1), (2,5)])
     }
 }
