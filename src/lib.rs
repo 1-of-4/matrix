@@ -1,5 +1,4 @@
 pub mod matrix {
-    use syntax::util::map_in_place::MapInPlace;
 
     fn v(r: usize, c: usize) -> Vec<i32> {
         vec![0; r*c - 1]
@@ -11,7 +10,33 @@ pub mod matrix {
         entries: Vec<i32>
     }
 
-    struct RowOperation {} //todo
+    enum Operation {
+        Swap,
+        Sum,
+        Reduce
+    }
+
+    struct RowOperation {
+        op: Operation,
+        r1: usize,
+        r2: Option<usize>,
+        co: Option<usize>
+    }
+
+    impl RowOperation {
+        pub fn new(op: Operation, r1: usize, r2: Option<usize>, co: Option<usize>) -> RowOperation {
+            RowOperation {
+                op,
+                r1,
+                r2,
+                co
+            }
+        }
+
+        pub fn elementary(&self, size: usize) -> Matrix {
+            Matrix::identity(size).row_op(self)
+        }
+    }
 
     impl Matrix {
 
@@ -35,20 +60,28 @@ pub mod matrix {
             Matrix::from(size, size, entries)
         }
 
-        pub fn transpose(&self) -> Matrix {
-            unimplemented!()
-        }
-
         pub fn entry(&self, r: usize, c: usize) -> i32 {
             self.entries[((r - 1) * self.c) + c - 1]
         }
 
-        pub fn row(&self, i: usize) -> Vec<i32> {
+        pub fn row(&self, i: usize) -> Vec<(usize, i32)> {
             unimplemented!()
         }
 
-        pub fn col(&self, i: usize) -> Vec<i32> {
+        pub fn col(&self, i: usize) -> Vec<(usize, i32)> {
             unimplemented!()
+        }
+
+        pub fn transpose(&self) -> Matrix {
+            unimplemented!()
+        }
+
+        pub fn row_op(&self, row_op: &RowOperation) -> Matrix {
+            match row_op.op {
+                Operation::Swap => unimplemented!(),
+                Operation::Sum => unimplemented!(),
+                Operation::Reduce => unimplemented!()
+            }
         }
 
         pub fn rref(&self) -> (Matrix, Vec<RowOperation>) {
