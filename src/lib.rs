@@ -12,23 +12,25 @@ pub mod matrix {
 
     pub struct RowOp {
         operation: Operation,
+        size: usize,
         row1: usize,
         row2: usize,
         coefficient: usize
     }
 
     impl RowOp {
-        pub fn new(operation: Operation, row1: usize, row2: usize, coefficient: usize) -> RowOp {
+        pub fn new(operation: Operation, size: usize, row1: usize, row2: usize, coefficient: usize) -> RowOp { //todo: validate
             RowOp {
                 operation,
+                size,
                 row1,
                 row2,
                 coefficient
             }
         }
 
-        pub fn elementary(self, size: usize) -> Matrix {
-            let mut m = Matrix::identity(size);
+        pub fn elementary(self) -> Matrix {
+            let mut m = Matrix::identity(self.size);
             m.row_op(self);
             m
         }
@@ -42,7 +44,7 @@ pub mod matrix {
 
     impl Matrix {
 
-        pub fn from(r: usize, c: usize, entries: Vec<i32>) -> Matrix {
+        pub fn from(r: usize, c: usize, entries: Vec<i32>) -> Matrix { //todo: validate size
             Matrix {
                 r,
                 c,
@@ -74,11 +76,7 @@ pub mod matrix {
             self.entries.clone()
         }
 
-        pub fn transpose(&self) -> Matrix {
-            unimplemented!()
-        }
-
-        pub fn row_op(&mut self, op: RowOp) {
+        pub fn row_op(&mut self, op: RowOp) -> &Self {
             match op.operation {
                 Operation::Swap => {
                     for col in 1..=self.c {
@@ -87,10 +85,15 @@ pub mod matrix {
                         self.update(op.row1, col, v2);
                         self.update(op.row2, col, v1);
                     }
+                    self
                 },
                 Operation::Sum => unimplemented!(),
                 Operation::Multiply => unimplemented!()
             }
+        }
+
+        pub fn transpose(&self) -> Matrix {
+            unimplemented!()
         }
 
         pub fn rref(&self) -> (Matrix, Vec<RowOp>) {
@@ -131,13 +134,18 @@ mod tests {
 
     #[test]
     fn swap_rows() {
-        let mut mat = Matrix::from(3,3, vec![1,2,3,
-                                                4,5,6,
-                                                7,8,9]);
-        let swap = RowOp::new(Operation::Swap, 1, 3, 0);
-        mat.row_op(swap);
-        assert_eq!(mat.list(), vec![7,8,9,
-                                       4,5,6,
-                                       1,2,3])
+        let original = vec![1,2,3,4,5,6,7,8,9];
+        let mut mat = Matrix::from(3,3, original);
+        let swap = RowOp::new(Operation::Swap, 3, 1, 3, 0);
+        assert_eq!(mat.row_op(swap).list(), vec![7,8,9,
+                                                 4,5,6,
+                                                 1,2,3]);
+    }
+
+    fn swap_identity() {
+        let swap = RowOp::new(Operation::Swap, 3, 1, 2, 0);
+        assert_eq!(swap.elementary().list(), vec![0,1,0,
+                                                  1,0,0,
+                                                  0,0,1])
     }
 }
