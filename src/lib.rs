@@ -28,14 +28,16 @@ pub mod matrix {
         }
 
         pub fn elementary(self, size: usize) -> Matrix {
-            Matrix::identity(size).row_op(self)
+            let mut m = Matrix::identity(size);
+            m.row_op(self);
+            m
         }
     }
 
     pub struct Matrix {
         r: usize,
         c: usize,
-        entries: Vec<i32> //todo: put in box?
+        entries: Vec<i32>
     }
 
     impl Matrix {
@@ -61,11 +63,11 @@ pub mod matrix {
         }
 
         pub fn entry(&self, r: usize, c: usize) -> i32 {
-            self.entries[((r - 1) * self.c) + c - 1] //faster and easier than iter bullshit
+            self.entries[((r-1) * self.c) + c-1] //faster and easier than iter bullshit
         }
 
         pub fn update(&mut self, r: usize, c: usize, data: i32) {
-            self.entries[((r-1) * self.c) + c - 1] = data
+            self.entries[((r-1) * self.c) + c-1] = data
         }
 
         pub fn list(&self) -> Vec<i32> {
@@ -76,15 +78,15 @@ pub mod matrix {
             unimplemented!()
         }
 
-        pub fn row_op(&mut self, op: RowOp) -> &Self {
+        pub fn row_op(&mut self, op: RowOp) {
             match op.operation {
                 Operation::Swap => {
-                    for col in 0..self.c {
-                        let temp = self.entry(op.row1, col);
-                        self.update(op.row1, col, self.entry(op.row2, col));
-                        self.update(op.row2, col, temp);
+                    for col in 1..=self.c {
+                        let v1 = self.entry(op.row1, col);
+                        let v2 = self.entry(op.row2, col);
+                        self.update(op.row1, col, v2);
+                        self.update(op.row2, col, v1);
                     }
-                    self
                 },
                 Operation::Sum => unimplemented!(),
                 Operation::Multiply => unimplemented!()
@@ -110,11 +112,11 @@ mod tests {
     fn identity() {
         let identity = Matrix::identity(2);
         assert_eq!(identity.list(), vec![1,0,
-                                          0,1]);
+                                         0,1]);
         let identity = Matrix::identity(3);
         assert_eq!(identity.list(), vec![1,0,0,
-                                          0,1,0,
-                                          0,0,1]);
+                                         0,1,0,
+                                         0,0,1]);
     }
 
     #[test]
@@ -129,11 +131,13 @@ mod tests {
 
     #[test]
     fn swap_rows() {
-        let mut matrix = Matrix::from(2,2, vec![1,2,3,4]);
-        let original_r1 = matrix.row(1);
-        let swap = RowOp::new(Operation::Swap, 1, 2, 0);
-        let matrix = matrix.row_op(swap);
-        let new_r2 = matrix.row(2);
-        assert_eq!(original_r1, new_r2)
+        let mut mat = Matrix::from(3,3, vec![1,2,3,
+                                                4,5,6,
+                                                7,8,9]);
+        let swap = RowOp::new(Operation::Swap, 1, 3, 0);
+        mat.row_op(swap);
+        assert_eq!(mat.list(), vec![7,8,9,
+                                       4,5,6,
+                                       1,2,3])
     }
 }
