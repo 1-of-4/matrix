@@ -1,13 +1,28 @@
 pub mod matrix {
+    use std::ops::Deref;
 
     fn v(r: usize, c: usize) -> Vec<i32> {
         vec![0; r*c]
     }
 
-    pub struct Matrix {
-        r: usize,
-        c: usize,
-        entries: Vec<i32>
+    pub struct Entry {
+        row: usize,
+        col: usize,
+        data: i32
+    }
+
+    impl Entry {
+        pub fn new(row: usize, col: usize, data: i32) -> Entry {
+            Entry {
+                row,
+                col,
+                data
+            }
+        }
+
+        pub fn update(&mut self, data: i32) {
+            self.data = data;
+        }
     }
 
     pub enum Operation {
@@ -38,17 +53,29 @@ pub mod matrix {
         }
     }
 
-    impl Matrix {
+    pub struct Matrix {
+        r: usize,
+        c: usize,
+        entries: Vec<Entry>
+    }
 
-        pub fn list(&self) -> &Vec<i32> {
-            &self.entries
-        }
+    impl Matrix {
 
         pub fn from(r: usize, c: usize, entries: Vec<i32>) -> Matrix {
             Matrix {
                 r,
                 c,
-                entries
+                entries: entries.iter()
+                    .enumerate()
+                    .map(
+                        |(i,e)|
+                            Entry::new(
+                                (i%c)+1,
+                                (i%r)+1,
+                                e.clone()
+                            )
+                    )
+                    .collect()
             }
         }
 
@@ -64,28 +91,39 @@ pub mod matrix {
             Matrix::from(s, s, entries)
         }
 
-        pub fn entry(&self, r: usize, c: usize) -> i32 {
-            self.entries[((r - 1) * self.c) + c - 1]
+        pub fn entry(&self, r: usize, c: usize) -> &Entry {
+            &self.entries[((r - 1) * self.c) + c - 1] //faster and easier than iter bullshit
         }
 
-        pub fn row(&self, r: usize) -> Vec<(usize, i32)> { //todo: validate that r < num rows
-            let start = (r-1) * self.c;
-            let end = r * self.c;
+        pub fn row(&self, r: usize) -> Vec<(usize, &Entry)> { //todo: validate that r < num rows
             self.entries
-                .clone() //todo: get rid of this cancer
-                .into_iter()
+                .iter()
                 .enumerate()
-                .filter(|i| i.0 >= start && i.0 < end)
+                .filter(|(_,e)| e.row == r)
                 .collect()
         }
 
-        pub fn col(&self, c: usize) -> Vec<(usize, i32)> { //todo: validate that c < num cols
+        pub fn col(&self, c: usize) -> Vec<(usize, &Entry)> { //todo: validate that c < num cols
             self.entries
-                .clone() //todo: get rid of this cancer
-                .into_iter()
+                .iter()
                 .enumerate()
-                .filter(|i| i.0 % self.c == c-1)
+                .filter(|(_,e)| e.col == c)
                 .collect()
+        }
+
+        pub fn list(&self) -> Vec<i32> {
+            self.entries
+                .iter()
+                .map(|e| e.data)
+                .collect()
+        }
+
+        fn swap(&mut self, c1: (usize, usize), c2: (usize, usize)) {
+            let mut entry1 = *self.entry(c1.0, c1.1);
+            let mut entry2 = *self.entry(c2.0, c2.1);
+            let temp = entry1.data;
+            entry1.update(entry2.data);
+            entry2.update(temp);
         }
 
         pub fn transpose(&self) -> Matrix {
@@ -93,16 +131,15 @@ pub mod matrix {
         }
 
         pub fn row_op(self, op: RowOp) -> Matrix {
+            let mut copy = Matrix::from(self.r, self.c, self.list());
             match op.operation {
                 Operation::Swap => {
-                    let mut copy = self.entries.clone();
-                    let r1 = self.row(op.row1);
-                    let r2 = self.row(op.row2);
-                    for i in 0..self.c {
-                        copy[r1[i].0] = r2[i].1;
-                        copy[r2[i].0] = r1[i].1;
+                    for col in 0..copy.c {
+                        let entry1 = (op.row1, col);
+                        let entry2 = (op.row2, col);
+                        copy.swap(entry1, entry2);
                     }
-                    Matrix::from(self.r, self.c, copy)
+                    copy
                 },
                 Operation::Sum => unimplemented!(),
                 Operation::Multiply => unimplemented!()
@@ -127,10 +164,10 @@ mod tests {
     #[test]
     fn identity() {
         let identity = Matrix::identity(2);
-        assert_eq!(identity.list(), &vec![1,0,
+        assert_eq!(identity.list(), vec![1,0,
                                           0,1]);
         let identity = Matrix::identity(3);
-        assert_eq!(identity.list(), &vec![1,0,0,
+        assert_eq!(identity.list(), vec![1,0,0,
                                           0,1,0,
                                           0,0,1]);
     }
