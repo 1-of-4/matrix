@@ -2,24 +2,23 @@
 //    ($($x:expr),*) => (<[_]>::into_vec(Box::new([$($x as f64),*])));
 //}
 
+#[macro_use]
 pub mod matrix {
 
+    #[macro_export]
     macro_rules! mat {
         (
             $(
-                $cols:expr; [ $($e:expr),* ]
+                $r:expr; $c:expr; [$($e:expr),+]
             )?
-        ) => {
-            Matrix::
-        }
+        ) => {{
+            let vec = vec![$($($e as f64),+),*];
+            Matrix::from($($r)?, $($c)?, vec)
+        }}
     }
 
     fn v(r: usize, c: usize) -> Vec<f64> {
         vec![0.0; r*c]
-    }
-
-    fn fv(v: Vec<i32>) -> Vec<f64> {
-        v.iter().map(|e| *e as f64).collect()
     }
 
     pub enum Operation {
@@ -138,53 +137,34 @@ mod tests {
 
     #[test]
     fn macro_expansion() {
-        assert_eq!(mat![1,2,3], vec![1.0,2.0,3.0]);
+        let mat = mat!(2; 2; [1,2,3,4]);
+        assert_eq!(mat.list(), vec![1.0,2.0,3.0,4.0]);
     }
 
-//    #[test]
-//    fn identity() {
-//        let identity = Matrix::identity(2);
-//        assert_eq!(identity.list(), vec![1,0,
-//                                         0,1]);
-//        let identity = Matrix::identity(3);
-//        assert_eq!(identity.list(), vec![1,0,0,
-//                                         0,1,0,
-//                                         0,0,1]);
-//    }
-//
-//    #[test]
-//    fn from_array() {
-//        let vec = vec![1, 2, 3, 4];
-//        let mat = Matrix::from(2, 2, vec);
-//        assert_eq!(mat.entry(1, 1), 1);
-//        assert_eq!(mat.entry(1, 2), 2);
-//        assert_eq!(mat.entry(2, 1), 3);
-//        assert_eq!(mat.entry(2, 2), 4);
-//    }
-//
-//    #[test]
-//    fn swap_rows() {
-//        let original = vec![1,2,3,4,5,6,7,8,9];
-//        let mut mat = Matrix::from(3,3, original);
-//        let swap = RowOp::new(Operation::Swap, 3, 1, 3, 0);
-//        assert_eq!(mat.row_op(&swap).list(), vec![7,8,9,
-//                                                  4,5,6,
-//                                                  1,2,3]);
-//        assert_eq!(swap.elementary().list(), vec![0,0,1,
-//                                                  0,1,0,
-//                                                  1,0,0])
-//    }
-//
-//    #[test]
-//    fn sum_rows() {
-//        let original = vec![1,2,3,4,5,6,7,8,9];
-//        let mut mat = Matrix::from(3,3, original);
-//        let sum = RowOp::new(Operation::Sum, 3, 1, 2, 0);
-//        assert_eq!(mat.row_op(&sum).list(), vec![5,7,9,
-//                                                 4,5,6,
-//                                                 7,8,9]);
-//        assert_eq!(sum.elementary().list(), vec![1,1,0,
-//                                                 0,1,0,
-//                                                 0,0,1])
-//    }
+    #[test]
+    fn from_array() {
+        let mat = mat!(2;2;[1, 2, 3, 4]);
+        assert_eq!(mat.entry(1, 1), 1.0);
+        assert_eq!(mat.entry(1, 2), 2.0);
+        assert_eq!(mat.entry(2, 1), 3.0);
+        assert_eq!(mat.entry(2, 2), 4.0);
+    }
+
+    #[test]
+    fn swap_rows() {
+        let mut mat = mat!(3;3;[1,2,3,4,5,6,7,8,9]);
+        let swap = RowOp::new(Operation::Swap, 3, 1, 3, 0);
+        assert_eq!(mat.row_op(&swap).list(), vec![7,8,9,
+                                                  4,5,6,
+                                                  1,2,3].iter().map(|e| *e as f64).collect::<Vec<f64>>());
+    }
+
+    #[test]
+    fn sum_rows() {
+        let mut mat = mat!(3;3;[1,2,3,4,5,6,7,8,9]);
+        let sum = RowOp::new(Operation::Sum, 3, 1, 2, 0);
+        assert_eq!(mat.row_op(&sum).list(), vec![5,7,9,
+                                                 4,5,6,
+                                                 7,8,9].iter().map(|e| *e as f64).collect::<Vec<f64>>());
+    }
 }
