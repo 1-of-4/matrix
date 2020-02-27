@@ -17,18 +17,18 @@ pub mod matrix {
     }
 
     pub struct Swap {
-        r1: usize,
-        r2: usize
+        pub r1: usize,
+        pub r2: usize
     }
 
     pub struct Sum {
-        r1: usize,
-        r2: usize
+        pub r1: usize,
+        pub r2: usize
     }
 
     pub struct Multiply {
-        r: usize,
-        co: f64
+        pub r: usize,
+        pub co: f64
     }
 
     pub trait RowOp {
@@ -48,7 +48,7 @@ pub mod matrix {
 
     impl RowOp for Sum {
         fn operate(&self, m: &mut Matrix) {
-            for col in 1..m.c {
+            for col in 1..=m.c {
                 let v1 = m.entry(self.r1, col);
                 let v2 = m.entry(self.r2, col);
                 m.update(self.r1, col, v1+v2);
@@ -70,11 +70,15 @@ pub mod matrix {
 
     impl Matrix {
 
-        pub fn from(r: usize, c: usize, entries: Vec<f64>) -> Matrix { //todo: validate size
-            Matrix {
-                r,
-                c,
-                entries
+        pub fn from(r: usize, c: usize, entries: Vec<f64>) -> Matrix {
+            if r*c == entries.len() {
+                Matrix {
+                    r,
+                    c,
+                    entries
+                }
+            } else {
+                panic!("Number of specified rows ({}) and columns ({}) does not match with number of entries ({}, should be {})", r, c, entries.len(), r*c)
             }
         }
 
@@ -108,8 +112,8 @@ pub mod matrix {
             self.entries.clone()
         }
 
-        pub fn row_op<T: RowOp>(&mut self, op: T) {
-            op.operate(self)
+        pub fn op<T: RowOp>(&mut self, operation: T) {
+            operation.operate(self)
         }
 
         pub fn transpose(&self) -> Matrix {
@@ -126,43 +130,45 @@ pub mod matrix {
     }
 }
 
+#[cfg(test)]
+#[macro_use]
+mod tests {
+    use crate::matrix::*;
 
-//todo will deal with tests later.
+    #[test]
+    #[should_panic]
+    fn bad_matrix() {
+        let mat = mat!(2;2;[1,2,3]);
+    }
 
-//#[cfg(test)]
-//#[macro_use]
-//mod tests {
-//    use crate::matrix::*;
-//    #[test]
-//    fn macro_expansion() {
-//        let mat = mat!(2; 2; [1,2,3,4]);
-//        assert_eq!(mat.list(), vec![1.0,2.0,3.0,4.0]);
-//    }
-//
-//    #[test]
-//    fn from_array() {
-//        let mat = mat!(2;2;[1, 2, 3, 4]);
-//        assert_eq!(mat.entry(1, 1), 1.0);
-//        assert_eq!(mat.entry(1, 2), 2.0);
-//        assert_eq!(mat.entry(2, 1), 3.0);
-//        assert_eq!(mat.entry(2, 2), 4.0);
-//    }
-//
-//    #[test]
-//    fn swap_rows() {
-//        let mut mat = mat!(3;3;[1,2,3,4,5,6,7,8,9]);
-//        let swap = Op::Swap::new(3, 1, 3);
-//        assert_eq!(mat.op(swap).list(), vec![7, 8, 9,
-//                                             4, 5, 6,
-//                                             1, 2, 3].iter().map(|e| *e as f64).collect::<Vec<f64>>());
-//    }
-//
-//    #[test]
-//    fn sum_rows() {
-//        let mut mat = mat!(3;3;[1,2,3,4,5,6,7,8,9]);
-//        let sum = Op::Sum::new(3, 1, 2);
-//        assert_eq!(mat.op(sum).list(), vec![5, 7, 9,
-//                                            4, 5, 6,
-//                                            7, 8, 9].iter().map(|e| *e as f64).collect::<Vec<f64>>());
-//    }
-//}
+    #[test]
+    fn macro_expansion() {
+        let mat = mat!(2;2;[1,2,3,4]);
+        assert_eq!(mat.list(), vec![1.0,2.0,3.0,4.0]);
+    }
+
+    #[test]
+    fn from_array() {
+        let mat = mat!(2;2;[1, 2, 3, 4]);
+        assert_eq!(mat.entry(1, 1), 1.0);
+        assert_eq!(mat.entry(1, 2), 2.0);
+        assert_eq!(mat.entry(2, 1), 3.0);
+        assert_eq!(mat.entry(2, 2), 4.0);
+    }
+
+    #[test]
+    fn swap_rows() {
+        let mut mat = mat!(3;3;[1,2,3,4,5,6,7,8,9]);
+        let swap = Swap { r1: 3, r2: 1 };
+        mat.op(swap);
+        assert_eq!(mat.list(), mat!(3;3;[7,8,9,4,5,6,1,2,3]).list())
+    }
+
+    #[test]
+    fn sum_rows() {
+        let mut mat = mat!(3;3;[1,2,3,4,5,6,7,8,9]);
+        let sum = Sum { r1: 1, r2: 2 };
+        mat.op(sum);
+        assert_eq!(mat.list(), mat!(3;3;[5,7,9,4,5,6,7,8,9]).list())
+    }
+}
