@@ -1,6 +1,5 @@
 #[macro_use]
 pub mod matrix {
-
     #[macro_export]
     macro_rules! mat {
         (
@@ -15,15 +14,6 @@ pub mod matrix {
 
     fn v(r: usize, c: usize) -> Vec<f64> {
         vec![0.0; r*c]
-    }
-
-    pub trait RowOp {
-        fn operate(&self, m: &mut Matrix) -> &Matrix;
-        fn elementary(&self, s: usize) -> Matrix {
-            let mut m = Matrix::identity(s);
-            m.op(self);
-            m
-        }
     }
 
     pub struct Swap {
@@ -41,31 +31,33 @@ pub mod matrix {
         co: f64
     }
 
+    pub trait RowOp {
+        fn operate(&self, m: &mut Matrix);
+    }
+
     impl RowOp for Swap {
-        fn operate(&self, m: &mut Matrix) -> &Matrix {
+        fn operate(&self, m: &mut Matrix) {
             for col in 1..=m.c {
                 let v1 = m.entry(self.r1, col);
                 let v2 = m.entry(self.r2, col);
                 m.update(self.r1, col, v2);
                 m.update(self.r2, col, v1);
             }
-            m
         }
     }
 
     impl RowOp for Sum {
-        fn operate(&self, m: &mut Matrix) -> &Matrix {
+        fn operate(&self, m: &mut Matrix) {
             for col in 1..m.c {
                 let v1 = m.entry(self.r1, col);
                 let v2 = m.entry(self.r2, col);
                 m.update(self.r1, col, v1+v2);
             }
-            m
         }
     }
 
     impl RowOp for Multiply {
-        fn operate(&self, m: &mut Matrix) -> &Matrix {
+        fn operate(&self, m: &mut Matrix) {
             unimplemented!()
         }
     }
@@ -98,6 +90,12 @@ pub mod matrix {
             Matrix::from(s, s, entries)
         }
 
+        pub fn elementary<T: RowOp>(s: usize, op: T) -> Matrix {
+            let mut m = Matrix::identity(s);
+            op.operate(&mut m);
+            m
+        }
+
         pub fn entry(&self, r: usize, c: usize) -> f64 {
             self.entries[((r-1) * self.c) + c-1] //faster and easier than iter bullshit
         }
@@ -110,7 +108,7 @@ pub mod matrix {
             self.entries.clone()
         }
 
-        pub fn op<T: RowOp>(&mut self, op: T) -> &Self {
+        pub fn row_op<T: RowOp>(&mut self, op: T) {
             op.operate(self)
         }
 
