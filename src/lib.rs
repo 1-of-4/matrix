@@ -1,5 +1,6 @@
 #[macro_use]
 pub mod matrix {
+    use std::fmt::{Debug, Formatter, Error};
     #[macro_export]
     macro_rules! mat {
         (
@@ -58,7 +59,10 @@ pub mod matrix {
 
     impl RowOp for Multiply {
         fn operate(&self, m: &mut Matrix) {
-            unimplemented!()
+            for col in 1..=m.c {
+                let entry = m.entry(self.r, col);
+                m.update(self.r, col, entry*self.co);
+            }
         }
     }
 
@@ -170,5 +174,12 @@ mod tests {
         let sum = Sum { r1: 1, r2: 2 };
         mat.op(sum);
         assert_eq!(mat.list(), mat!(3;3;[5,7,9,4,5,6,7,8,9]).list())
+    }
+
+    fn multiply_row() {
+        let mut mat = mat!(2;3;[1,2,3,4,5,6]);
+        let mult = Multiply { r: 1, co: 3.0};
+        mat.op(mult);
+        assert_eq!(mat.list(), mat!(2;3;[3,6,9,4,5,6]).list())
     }
 }
