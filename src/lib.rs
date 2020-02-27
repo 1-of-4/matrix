@@ -1,6 +1,5 @@
 #[macro_use]
 pub mod matrix {
-    use std::fmt::{Debug, Formatter, Error};
     #[macro_export]
     macro_rules! mat {
         (
@@ -66,6 +65,7 @@ pub mod matrix {
         }
     }
 
+    #[derive(std::fmt::Debug, PartialEq)]
     pub struct Matrix {
         r: usize,
         c: usize,
@@ -116,8 +116,9 @@ pub mod matrix {
             self.entries.clone()
         }
 
-        pub fn op<T: RowOp>(&mut self, operation: T) {
-            operation.operate(self)
+        pub fn op<T: RowOp>(&mut self, operation: T) -> &Self {
+            operation.operate(self);
+            self
         }
 
         pub fn transpose(&self) -> Matrix {
@@ -152,34 +153,30 @@ mod tests {
     }
 
     #[test]
-    fn from_array() {
-        let mat = mat!(2;2;[1, 2, 3, 4]);
-        assert_eq!(mat.entry(1, 1), 1.0);
-        assert_eq!(mat.entry(1, 2), 2.0);
-        assert_eq!(mat.entry(2, 1), 3.0);
-        assert_eq!(mat.entry(2, 2), 4.0);
-    }
-
-    #[test]
     fn swap_rows() {
         let mut mat = mat!(3;3;[1,2,3,4,5,6,7,8,9]);
         let swap = Swap { r1: 3, r2: 1 };
-        mat.op(swap);
-        assert_eq!(mat.list(), mat!(3;3;[7,8,9,4,5,6,1,2,3]).list())
+        assert_eq!(*mat.op(swap), mat!(3;3;[7,8,9,4,5,6,1,2,3]))
     }
 
     #[test]
     fn sum_rows() {
         let mut mat = mat!(3;3;[1,2,3,4,5,6,7,8,9]);
         let sum = Sum { r1: 1, r2: 2 };
-        mat.op(sum);
-        assert_eq!(mat.list(), mat!(3;3;[5,7,9,4,5,6,7,8,9]).list())
+        assert_eq!(*mat.op(sum), mat!(3;3;[5,7,9,4,5,6,7,8,9]))
     }
 
+    #[test]
     fn multiply_row() {
         let mut mat = mat!(2;3;[1,2,3,4,5,6]);
-        let mult = Multiply { r: 1, co: 3.0};
-        mat.op(mult);
-        assert_eq!(mat.list(), mat!(2;3;[3,6,9,4,5,6]).list())
+        let mult = Multiply { r: 1, co: 3.0 };
+        assert_eq!(*mat.op(mult), mat!(2;3;[3,6,9,4,5,6]))
+    }
+
+    #[test]
+    fn elementary() {
+        assert_eq!(Matrix::elementary(2, Swap {r1: 1, r2: 2}), mat!(2;2;[0,1,1,0]));
+        assert_eq!(Matrix::elementary(2, Sum {r1: 1, r2: 2}), mat!(2;2;[1,1,0,1]));
+        assert_eq!(Matrix::elementary(2, Multiply {r: 1, co: 2.0}), mat!(2;2;[2,0,0,1]));
     }
 }
