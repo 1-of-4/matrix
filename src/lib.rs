@@ -2,20 +2,21 @@ pub mod error;
 
 #[macro_use]
 pub mod matrix {
-    /// Similar to stdlib's `vec!`, creates a Matrix object without needing any other data structures or complex syntax.
+    /// Similar to stdlib's `vec!`, creates a Matrix object without necessarily needing needing any other data structures or complex syntax.
     ///
-    /// Syntax is `vec!(number_of_rows; number_of_columns; [list of values]`.
-    /// - The list of values can be signed or unsigned integers or floating point values.
+    /// Syntax is `mat!(number_of_rows; number_of_columns; [list of values]` if you're going straight from raw data.
+    /// - The explicit list of values can be signed or unsigned integers or floating point values.
     /// - You should *always* bind to a mutable variable, since many functions take a `&mut Matrix`.
     /// - As with most macro invocations, spacing is optional. However the `;` and `[`+`]` are not.
-    /// Since this is mostly syntactic sugar for [Matrix::from()], look there for further info.
+    ///
+    /// If you want to build from a preexisting `Vec<f64>`, use [Matrix::create()] instead. If you have a `Vec` of some other numeric type, `map` its contents to f64 first.
     ///
     /// # Example
     ///
     /// ```rust
     /// # #[macro_use]
-    /// # fn main() {
     /// # use calc::{matrix::Matrix, mat};
+    /// # fn main() {
     ///
     /// // constructs a 2x2 matrix with content:
     /// // (row, col) : data
@@ -64,12 +65,28 @@ pub mod matrix {
         pub co: f64
     }
 
+    pub enum RowOp {
+        Swap(Swap),
+        Sum(Sum),
+        Multiply(Multiply)
+    }
+
     /// Trait for all row operations, only has one function: `operate()`.
-    pub trait RowOp {
+    pub trait RowOperation {
         fn operate(&self, m: &mut Matrix);
     }
 
-    impl RowOp for Swap {
+    impl RowOperation for RowOp {
+        fn operate(&self, m: &mut Matrix) {
+            match self {
+                RowOp::Swap(inner) => inner.operate(m),
+                RowOp::Sum(inner) => inner.operate(m),
+                RowOp::Multiply(inner) => inner.operate(m)
+            };
+        }
+    }
+
+    impl RowOperation for Swap {
         fn operate(&self, m: &mut Matrix) {
             for col in 1..=m.c {
                 let v1 = m.entry(self.r1, col);
@@ -80,7 +97,7 @@ pub mod matrix {
         }
     }
 
-    impl RowOp for Sum {
+    impl RowOperation for Sum {
         fn operate(&self, m: &mut Matrix) {
             for col in 1..=m.c {
                 let v1 = m.entry(self.r1, col);
@@ -90,7 +107,7 @@ pub mod matrix {
         }
     }
 
-    impl RowOp for Multiply {
+    impl RowOperation for Multiply {
         fn operate(&self, m: &mut Matrix) {
             for col in 1..=m.c {
                 let entry = m.entry(self.r, col);
@@ -111,7 +128,7 @@ pub mod matrix {
         /// The main method by which `Matrix` instances are created.
         ///
         /// Takes a number of rows `r`, a number of columns `c`, and a list of `entries` for the matrix.
-        /// This function can be kind of clunky due to the fact that it requires a `Vec` of `f64`; use [macro::mat] instead, as it is more flexible.
+        /// This function can be kind of clunky due to the fact that it requires a `Vec` of `f64`; use [macro::mat] instead, as it converts from integers to floats for you.
         pub fn create(r: usize, c: usize, entries: Vec<f64>) -> Matrix {
             if r * c == entries.len() {
                 Matrix {
@@ -178,7 +195,7 @@ pub mod matrix {
         ///                              0,0,1]));
         /// # }
         /// ```
-        pub fn elementary<T: RowOp>(s: usize, op: T) -> Matrix {
+        pub fn elementary<T: RowOperation>(s: usize, op: T) -> Matrix {
             let mut m = Matrix::identity(s);
             op.operate(&mut m);
             m
@@ -215,7 +232,7 @@ pub mod matrix {
         /// let mut matrix = mat!(2; 2; [1, 3, 5, 7]);
         /// assert_eq!(matrix.entry(1, 2), 3.0);
         /// matrix.update(1, 2, 0.0);
-        /// assert_eq!(matrix.entry(1, 2), 0);
+        /// assert_eq!(matrix.entry(1, 2), 0.0);
         /// # }
         /// ```
         pub fn update(&mut self, r: usize, c: usize, data: f64) {
@@ -244,7 +261,8 @@ pub mod matrix {
 
         /// Applies a row operation to the matrix and returns itself.
         ///
-        /// Because it both mutates the caller and the return type is `&Self`, this function can be either chained or used in an iterative manner.
+        /// Because it both mutates the caller and the return type is `&mut Self`, this function can be either chained or used in a looped context.
+        /// It is *strongly advised* to not attempt to operate on a `Matrix` using a `Vec<RowOp>` by purely using `.iter().map()`, as `op`'s mutating nature makes it a natural candidate for a more traditional `for` loop.
         ///
         /// # Examples
         ///
@@ -257,16 +275,16 @@ pub mod matrix {
         ///
         /// // Demonstrating with an identity matrix, for clarity's sake
         /// let mut matrix = Matrix::identity(3); // remember that it MUST be a mutable binding
-        /// let op1 = Swap { r1: 1, r2: 2 }; // swap rows 1 and 2
-        /// let op2 = Sum { r1: 3, r2: 2}; // sum rows 2 and 3 and put into row 3
-        /// let op3 = Multiply { r: 3, co: 3.0 }; // multiply r1 by 3
+        /// let op1 = RowOp::Swap(Swap { r1: 1, r2: 2 }); // swap rows 1 and 2
+        /// let op2 = RowOp::Sum(Sum { r1: 3, r2: 2}); // sum rows 2 and 3 and put into row 3
+        /// let op3 = RowOp::Multiply(Multiply { r: 1, co: 3.0 }); // multiply r1 by 3
         /// matrix.op(op1).op(op2).op(op3);
         ///
         /// assert_eq!(matrix, mat!(3; 3; [0,3,0,1,0,0,1,0,1]))
         /// # }
         /// ```
         ///
-        /// ## In an iter with `map`
+        /// ## Looping through a `Vec` of `RowOp`s
         ///
         /// ```rust
         /// # use calc::{matrix::*, mat};
@@ -274,16 +292,19 @@ pub mod matrix {
         /// # fn main() {
         ///
         /// let mut matrix = Matrix::identity(3);
-        /// let op1 = Swap { r1: 1, r2: 2 }; // swap rows 1 and 2
-        /// let op2 = Sum { r1: 3, r2: 2}; // sum rows 2 and 3 and put into row 3
-        /// let op3 = Multiply { r: 3, co: 3.0 }; // multiply r1 by 3
-        /// let operations = Vec::<Box<dyn RowOp>>::from([op1, op2, op3]);
+        /// let op1 = RowOp::Swap(Swap { r1: 1, r2: 2 }); // swap rows 1 and 2
+        /// let op2 = RowOp::Sum(Sum { r1: 3, r2: 2}); // sum rows 2 and 3 and put into row 3
+        /// let op3 = RowOp::Multiply(Multiply { r: 1, co: 3.0 }); // multiply r1 by 3
+        /// let operations = vec![op1, op2, op3];
         ///
-        /// let operated = operations.iter().map(|e: dyn RowOp| matrix.op(e)).collect::<Matrix>();
-        /// assert_eq!(operated, mat!(3; 3; [0,3,0,1,0,0,1,0,1]))
+        /// for e in operations.into_iter() {
+        ///     matrix.op(e);
+        /// }
+        ///
+        /// assert_eq!(matrix, mat!(3; 3; [0,3,0,1,0,0,1,0,1]))
         /// # }
         /// ```
-        pub fn op(&mut self, operation: impl RowOp) -> &mut Self {
+        pub fn op(&mut self, operation: RowOp) -> &mut Self {
             operation.operate(self);
             self
         }
@@ -292,7 +313,7 @@ pub mod matrix {
             unimplemented!()
         }
 
-        pub fn rref<T: RowOp>(&self) -> (Matrix, Vec<T>) {
+        pub fn rref(&self) -> (Matrix, Vec<RowOp>) {
             unimplemented!()
         }
 
@@ -322,21 +343,21 @@ mod tests {
     #[test]
     fn swap_rows() {
         let mut mat = mat!(3;3;[1,2,3,4,5,6,7,8,9]);
-        let swap = Swap { r1: 3, r2: 1 };
+        let swap = RowOp::Swap(Swap { r1: 3, r2: 1 });
         assert_eq!(*mat.op(swap), mat!(3;3;[7,8,9,4,5,6,1,2,3]))
     }
 
     #[test]
     fn sum_rows() {
         let mut mat = mat!(3;3;[1,2,3,4,5,6,7,8,9]);
-        let sum = Sum { r1: 1, r2: 2 };
+        let sum = RowOp::Sum(Sum { r1: 1, r2: 2 });
         assert_eq!(*mat.op(sum), mat!(3;3;[5,7,9,4,5,6,7,8,9]))
     }
 
     #[test]
     fn multiply_row() {
         let mut mat = mat!(2;3;[1,2,3,4,5,6]);
-        let mult = Multiply { r: 1, co: 3.0 };
+        let mult = RowOp::Multiply(Multiply { r: 1, co: 3.0 });
         assert_eq!(*mat.op(mult), mat!(2;3;[3,6,9,4,5,6]))
     }
 
