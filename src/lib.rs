@@ -1,6 +1,7 @@
+pub mod error;
+
 #[macro_use]
 pub mod matrix {
-
     /// Similar to stdlib's `vec!`, creates a Matrix object without needing any other data structures or complex syntax.
     ///
     /// Syntax is `vec!(number_of_rows; number_of_columns; [list of values]`.
@@ -11,8 +12,10 @@ pub mod matrix {
     ///
     /// # Example
     ///
-    /// ```
-    /// use calc::matrix::Matrix;
+    /// ```rust
+    /// # #[macro_use]
+    /// # fn main() {
+    /// # use calc::{matrix::Matrix, mat};
     ///
     /// // constructs a 2x2 matrix with content:
     /// // (row, col) : data
@@ -26,6 +29,7 @@ pub mod matrix {
     /// assert_eq!(from_macro.entry(1, 2), 2.0);
     /// assert_eq!(from_macro.entry(2, 1), 3.0);
     /// assert_eq!(from_macro.entry(2, 2), 4.0);
+    /// # }
     /// ```
     #[macro_export]
     macro_rules! mat {
@@ -35,7 +39,7 @@ pub mod matrix {
             )?
         ) => {{
             let vec = vec![$($($e as f64),+),*];
-            Matrix::from($($r)?, $($c)?, vec)
+            Matrix::create($($r)?, $($c)?, vec)
         }}
     }
 
@@ -81,7 +85,7 @@ pub mod matrix {
             for col in 1..=m.c {
                 let v1 = m.entry(self.r1, col);
                 let v2 = m.entry(self.r2, col);
-                m.update(self.r1, col, v1+v2);
+                m.update(self.r1, col, v1 + v2);
             }
         }
     }
@@ -90,7 +94,7 @@ pub mod matrix {
         fn operate(&self, m: &mut Matrix) {
             for col in 1..=m.c {
                 let entry = m.entry(self.r, col);
-                m.update(self.r, col, entry*self.co);
+                m.update(self.r, col, entry * self.co);
             }
         }
     }
@@ -104,20 +108,19 @@ pub mod matrix {
     }
 
     impl Matrix {
-
         /// The main method by which `Matrix` instances are created.
         ///
-        /// The program will `panic` if `r * c` is not equal to the length of `entries`.
-        /// This function is not public facing; use [macro::mat] instead, as it is more flexible.
-        fn from(r: usize, c: usize, entries: Vec<f64>) -> Matrix {
-            if r*c == entries.len() {
+        /// Takes a number of rows `r`, a number of columns `c`, and a list of `entries` for the matrix.
+        /// This function can be kind of clunky due to the fact that it requires a `Vec` of `f64`; use [macro::mat] instead, as it is more flexible.
+        pub fn create(r: usize, c: usize, entries: Vec<f64>) -> Matrix {
+            if r * c == entries.len() {
                 Matrix {
                     r,
                     c,
                     entries
                 }
             } else {
-                panic!("Number of specified rows ({:?}) and columns ({:?}) does not match with number of entries ({:?}, should be {:?})", r, c, entries.len(), r*c)
+                panic!("Number of specified rows ({:?}) and columns ({:?}) does not match with number of entries ({:?}, should be {:?})", r, c, entries.len(), r * c)
             }
         }
 
@@ -125,49 +128,55 @@ pub mod matrix {
         ///
         /// # Example
         ///
-        /// ```
-        /// use calc::matrix::Matrix;
+        /// ```rust
+        /// # use calc::{matrix::Matrix, mat};
+        /// # #[macro_use]
+        /// # fn main() {
         ///
         /// let mut matrix = Matrix::new(2, 3, 5.4);
-        /// assert_eq!(matrix, mat!(2; 3; [5.4,5.4,5.4,
-        ///                                5.4,5.4,5.4]));
+        /// assert_eq!(matrix, mat!(2; 3; [5.4,5.4,5.4,5.4,5.4,5.4]));
+        /// # }
         /// ```
         pub fn new(r: usize, c: usize, n: f64) -> Matrix {
-            Matrix::from(r, c, vec![n; r*c])
+            Matrix::create(r, c, vec![n; r * c])
         }
 
         /// Creates an identity matrix of size `s`; that is, a square matrix where all entries are 0, except for those along the main diagonal.
         ///
         /// # Example
         ///
-        /// ```
-        /// use calc::matrix::Matrix;
+        /// ```rust
+        /// # use calc::{matrix::Matrix, mat};
+        /// # #[macro_use]
+        /// # fn main() {
         ///
         /// let mut matrix = Matrix::identity(3);
-        /// assert_eq!(matrix, mat!(3; 3; [1,0,0
-        ///                                0,1,0
-        ///                                0,0,1]))
+        /// assert_eq!(matrix, mat!(3; 3; [1,0,0,0,1,0,0,0,1]))
+        /// # }
         /// ```
         pub fn identity(s: usize) -> Matrix {
-            let mut entries = vec![0.0; s*s];
+            let mut entries = vec![0.0; s * s];
             for i in 0..s {
-                entries[i*(s+1)] = 1.0;
+                entries[i * (s + 1)] = 1.0;
             }
-            Matrix::from(s, s, entries)
+            Matrix::create(s, s, entries)
         }
 
         /// Creates an elementary matrix of size `s`; that is, an identity matrix that has had one `RowOp` applied to it.
         ///
         /// # Example
         ///
-        /// ```
-        /// use calc::matrix::{Sum, Matrix};
+        /// ```rust
+        /// # use calc::{matrix::{Sum, Matrix}, mat};
+        /// # #[macro_use]
+        /// # fn main() {
         ///
         /// let operation = Sum { r1: 1, r2: 3 };
         /// let mut elem = Matrix::elementary(3, operation);
         /// assert_eq!(elem, mat!(3; 3; [1,0,1,
         ///                              0,1,0,
         ///                              0,0,1]));
+        /// # }
         /// ```
         pub fn elementary<T: RowOp>(s: usize, op: T) -> Matrix {
             let mut m = Matrix::identity(s);
@@ -180,14 +189,17 @@ pub mod matrix {
         ///
         /// # Example
         ///
-        /// ```
-        /// use calc::matrix::Matrix;
+        /// ```rust
+        /// # use calc::{matrix::Matrix, mat};
+        /// # #[macro_use]
+        /// # fn main() {
         ///
         /// let matrix = mat!(2; 2; [1, 2, 3, 4]);
-        /// assert_eq!(matrix.entry(2, 1), 3);
+        /// assert_eq!(matrix.entry(2, 1), 3.0);
+        /// # }
         /// ```
         pub fn entry(&self, r: usize, c: usize) -> f64 {
-            self.entries[((r-1) * self.c) + c-1] //faster and easier than iter bullshit
+            self.entries[((r - 1) * self.c) + c - 1] //faster and easier than iter bullshit
         }
 
         /// Updates an entry at row `r` and column `c` in the matrix to have value `data`.
@@ -195,16 +207,19 @@ pub mod matrix {
         ///
         /// # Example
         ///
-        /// ```
-        /// use calc::matrix::Matrix;
+        /// ```rust
+        /// # use calc::{matrix::Matrix, mat};
+        /// # #[macro_use]
+        /// # fn main() {
         ///
-        /// let matrix = mat!(2; 2; [1, 3, 5, 7]);
-        /// assert_eq!(matrix.entry(1, 2), 3);
-        /// matrix.update(1, 2, 0);
+        /// let mut matrix = mat!(2; 2; [1, 3, 5, 7]);
+        /// assert_eq!(matrix.entry(1, 2), 3.0);
+        /// matrix.update(1, 2, 0.0);
         /// assert_eq!(matrix.entry(1, 2), 0);
+        /// # }
         /// ```
         pub fn update(&mut self, r: usize, c: usize, data: f64) {
-            self.entries[((r-1) * self.c) + c-1] = data
+            self.entries[((r - 1) * self.c) + c - 1] = data
         }
 
         /// Gets the `Matrix`'s vector of entries in row-major form.
@@ -213,12 +228,15 @@ pub mod matrix {
         ///
         /// # Example
         ///
-        /// ```
-        /// use calc::matrix::Matrix;
+        /// ```rust
+        /// # use calc::{matrix::Matrix, mat};
+        /// # #[macro_use]
+        /// # fn main() {
         ///
         /// let matrix = mat!(2; 2; [1, 2, 3, 4]);
         /// let entries = vec![1.0, 2.0, 3.0, 4.0]; // note that these are all floating-point values
         /// assert_eq!(matrix.list(), entries);
+        /// # }
         /// ```
         pub fn list(&self) -> Vec<f64> {
             self.entries.clone()
@@ -232,8 +250,10 @@ pub mod matrix {
         ///
         /// ## Chaining calls
         ///
-        /// ```
-        /// use calc::matrix::*;
+        /// ```rust
+        /// # use calc::{matrix::*, mat};
+        /// # #[macro_use]
+        /// # fn main() {
         ///
         /// // Demonstrating with an identity matrix, for clarity's sake
         /// let mut matrix = Matrix::identity(3); // remember that it MUST be a mutable binding
@@ -242,29 +262,28 @@ pub mod matrix {
         /// let op3 = Multiply { r: 3, co: 3.0 }; // multiply r1 by 3
         /// matrix.op(op1).op(op2).op(op3);
         ///
-        /// // note that we are now working with a reference to matrix, so we must deref
-        /// assert_eq!(*matrix, mat!(3; 3; [0,3,0
-        ///                                 1,0,0
-        ///                                 1,0,1]))
+        /// assert_eq!(matrix, mat!(3; 3; [0,3,0,1,0,0,1,0,1]))
+        /// # }
         /// ```
         ///
         /// ## In an iter with `map`
         ///
-        /// ```
-        /// use calc::matrix::*;
+        /// ```rust
+        /// # use calc::{matrix::*, mat};
+        /// # #[macro_use]
+        /// # fn main() {
         ///
         /// let mut matrix = Matrix::identity(3);
         /// let op1 = Swap { r1: 1, r2: 2 }; // swap rows 1 and 2
         /// let op2 = Sum { r1: 3, r2: 2}; // sum rows 2 and 3 and put into row 3
         /// let op3 = Multiply { r: 3, co: 3.0 }; // multiply r1 by 3
-        /// let operations = vec![op1, op2, op3];
+        /// let operations = Vec::<Box<dyn RowOp>>::from([op1, op2, op3]);
         ///
-        /// let operated = operations.iter().map(|e| matrix.op(e)).collect::<Matrix>();
-        /// assert_eq!(operated, mat!(3; 3; [0,3,0
-        ///                                  1,0,0
-        ///                                  1,0,1]))
+        /// let operated = operations.iter().map(|e: dyn RowOp| matrix.op(e)).collect::<Matrix>();
+        /// assert_eq!(operated, mat!(3; 3; [0,3,0,1,0,0,1,0,1]))
+        /// # }
         /// ```
-        pub fn op<T: RowOp>(&mut self, operation: T) -> &Self {
+        pub fn op(&mut self, operation: impl RowOp) -> &mut Self {
             operation.operate(self);
             self
         }
@@ -297,7 +316,7 @@ mod tests {
     #[test]
     fn macro_expansion() {
         let mat = mat!(2;2;[1,2,3,4]);
-        assert_eq!(mat.list(), vec![1.0,2.0,3.0,4.0]);
+        assert_eq!(mat.list(), vec![1.0, 2.0, 3.0, 4.0]);
     }
 
     #[test]
@@ -323,8 +342,8 @@ mod tests {
 
     #[test]
     fn elementary() {
-        assert_eq!(Matrix::elementary(2, Swap {r1: 1, r2: 2}), mat!(2;2;[0,1,1,0]));
-        assert_eq!(Matrix::elementary(2, Sum {r1: 1, r2: 2}), mat!(2;2;[1,1,0,1]));
-        assert_eq!(Matrix::elementary(2, Multiply {r: 1, co: 2.0}), mat!(2;2;[2,0,0,1]));
+        assert_eq!(Matrix::elementary(2, Swap { r1: 1, r2: 2 }), mat!(2;2;[0,1,1,0]));
+        assert_eq!(Matrix::elementary(2, Sum { r1: 1, r2: 2 }), mat!(2;2;[1,1,0,1]));
+        assert_eq!(Matrix::elementary(2, Multiply { r: 1, co: 2.0 }), mat!(2;2;[2,0,0,1]));
     }
 }
