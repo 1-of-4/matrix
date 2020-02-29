@@ -2,7 +2,7 @@ pub mod error;
 
 #[macro_use]
 pub mod matrix {
-    use crate::error::MatrixError;
+    use crate::error::*;
     type Result<T> = std::result::Result<T, MatrixError>;
 
     /// Similar to stdlib's `vec!`, creates a Matrix object without necessarily needing needing any other data structures or complex syntax.
@@ -76,46 +76,54 @@ pub mod matrix {
 
     /// Trait for all row operations, only has one function: `operate()`.
     pub trait RowOperation {
-        fn operate(&self, m: &mut Matrix);
+        fn operate(&self, m: &mut Matrix) -> Result<()>;
     }
 
     impl RowOperation for RowOp {
-        fn operate(&self, m: &mut Matrix) {
+        fn operate(&self, m: &mut Matrix) -> Result<()>{
             match self {
                 RowOp::Swap(inner) => inner.operate(m),
                 RowOp::Sum(inner) => inner.operate(m),
                 RowOp::Multiply(inner) => inner.operate(m)
-            };
+            }
         }
     }
 
     impl RowOperation for Swap {
-        fn operate(&self, m: &mut Matrix) {
+        fn operate(&self, m: &mut Matrix) -> Result<()> {
+            check_index(self.r1, m.r)?;
+            check_index(self.r2, m.r)?;
             for col in 1..=m.c {
                 let v1 = m.entry(self.r1, col);
                 let v2 = m.entry(self.r2, col);
                 m.update(self.r1, col, v2);
                 m.update(self.r2, col, v1);
             }
+            Ok(())
         }
     }
 
     impl RowOperation for Sum {
-        fn operate(&self, m: &mut Matrix) {
+        fn operate(&self, m: &mut Matrix) -> Result<()> {
+            check_index(self.r1, m.r)?;
+            check_index(self.r2, m.r)?;
             for col in 1..=m.c {
                 let v1 = m.entry(self.r1, col);
                 let v2 = m.entry(self.r2, col);
                 m.update(self.r1, col, v1 + v2);
             }
+            Ok(())
         }
     }
 
     impl RowOperation for Multiply {
-        fn operate(&self, m: &mut Matrix) {
+        fn operate(&self, m: &mut Matrix) -> Result<()> {
+            check_index(self.r, m.r)?;
             for col in 1..=m.c {
                 let entry = m.entry(self.r, col);
                 m.update(self.r, col, entry * self.co);
             }
+            Ok(())
         }
     }
 
@@ -307,9 +315,9 @@ pub mod matrix {
         /// assert_eq!(matrix, mat!(3; 3; [0,3,0,1,0,0,1,0,1]))
         /// # }
         /// ```
-        pub fn op(&mut self, operation: RowOp) -> &mut Self {
-            operation.operate(self);
-            self
+        pub fn op(&mut self, operation: RowOp) -> Result<&mut Self> {
+            operation.operate(self)?;
+            Ok(self)
         }
 
         pub fn transpose(&self) -> Matrix {
