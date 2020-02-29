@@ -3,7 +3,18 @@ pub mod error;
 #[macro_use]
 pub mod matrix {
     use crate::error::*;
-    type Result<T> = std::result::Result<T, MatrixError>;
+    pub type Result<T> = std::result::Result<T, MatrixError>;
+
+    macro_rules! doctest {
+        ($body: block) => {
+            # #[macro_use]
+            # use calc::{matrix::*, mat};
+            # fn main() -> Result<()> {
+            $body
+            Ok(())
+            # }
+        }
+    }
 
     /// Similar to stdlib's `vec!`, creates a Matrix object without necessarily needing needing any other data structures or complex syntax.
     ///
@@ -17,10 +28,7 @@ pub mod matrix {
     /// # Example
     ///
     /// ```rust
-    /// # #[macro_use]
-    /// # use calc::{matrix::Matrix, mat};
-    /// # fn main() {
-    ///
+    /// doctest! {
     /// // constructs a 2x2 matrix with content:
     /// // (row, col) : data
     /// // (1, 1) : 1
@@ -33,17 +41,13 @@ pub mod matrix {
     /// assert_eq!(from_macro.entry(1, 2), 2.0);
     /// assert_eq!(from_macro.entry(2, 1), 3.0);
     /// assert_eq!(from_macro.entry(2, 2), 4.0);
-    /// # }
+    /// }
     /// ```
     #[macro_export]
     macro_rules! mat {
-        (
-            $(
-                $r:expr; $c:expr; [$($e:expr),+]
-            )?
-        ) => {{
-            let vec = vec![$($($e as f64),+),*];
-            Matrix::create($($r)?, $($c)?, vec)
+        ($r:expr; $c:expr; [$($e:expr),+]) => {{
+            let vec = vec![$($e as f64),*];
+            Matrix::create($r, $c, vec)?
         }}
     }
 
@@ -91,11 +95,9 @@ pub mod matrix {
 
     impl RowOperation for Swap {
         fn operate(&self, m: &mut Matrix) -> Result<()> {
-            check_index(self.r1, m.r)?;
-            check_index(self.r2, m.r)?;
             for col in 1..=m.c {
-                let v1 = m.entry(self.r1, col);
-                let v2 = m.entry(self.r2, col);
+                let v1 = m.entry(self.r1, col)?;
+                let v2 = m.entry(self.r2, col)?;
                 m.update(self.r1, col, v2);
                 m.update(self.r2, col, v1);
             }
@@ -105,11 +107,9 @@ pub mod matrix {
 
     impl RowOperation for Sum {
         fn operate(&self, m: &mut Matrix) -> Result<()> {
-            check_index(self.r1, m.r)?;
-            check_index(self.r2, m.r)?;
             for col in 1..=m.c {
-                let v1 = m.entry(self.r1, col);
-                let v2 = m.entry(self.r2, col);
+                let v1 = m.entry(self.r1, col)?;
+                let v2 = m.entry(self.r2, col)?;
                 m.update(self.r1, col, v1 + v2);
             }
             Ok(())
@@ -118,9 +118,8 @@ pub mod matrix {
 
     impl RowOperation for Multiply {
         fn operate(&self, m: &mut Matrix) -> Result<()> {
-            check_index(self.r, m.r)?;
             for col in 1..=m.c {
-                let entry = m.entry(self.r, col);
+                let entry = m.entry(self.r, col)?;
                 m.update(self.r, col, entry * self.co);
             }
             Ok(())
@@ -226,8 +225,10 @@ pub mod matrix {
         /// assert_eq!(matrix.entry(2, 1), 3.0);
         /// # }
         /// ```
-        pub fn entry(&self, r: usize, c: usize) -> f64 {
-            self.entries[((r - 1) * self.c) + c - 1] //faster and easier than iter bullshit
+        pub fn entry(&self, r: usize, c: usize) -> Result<f64> {
+            check_index(self.r, r)?;
+            check_index(self.c, c)?;
+            Ok(self.entries[((r - 1) * self.c) + c - 1]) //faster and easier than iter bullshit
         }
 
         /// Updates an entry at row `r` and column `c` in the matrix to have value `data`.
@@ -246,8 +247,10 @@ pub mod matrix {
         /// assert_eq!(matrix.entry(1, 2), 0.0);
         /// # }
         /// ```
-        pub fn update(&mut self, r: usize, c: usize, data: f64) {
-            self.entries[((r - 1) * self.c) + c - 1] = data
+        pub fn update(&mut self, r: usize, c: usize, data: f64) -> Result<()> {
+            check_index(self.r, r)?;
+            check_index(self.c, c)?;
+            Ok(self.entries[((r - 1) * self.c) + c - 1] = data)
         }
 
         /// Gets the `Matrix`'s vector of entries in row-major form.
@@ -282,7 +285,7 @@ pub mod matrix {
         /// ```rust
         /// # use calc::{matrix::*, mat};
         /// # #[macro_use]
-        /// # fn main() {
+        /// # fn main() -> Result<()> {
         ///
         /// // Demonstrating with an identity matrix, for clarity's sake
         /// let mut matrix = Matrix::identity(3); // remember that it MUST be a mutable binding
@@ -291,7 +294,8 @@ pub mod matrix {
         /// let op3 = RowOp::Multiply(Multiply { r: 1, co: 3.0 }); // multiply r1 by 3
         /// matrix.op(op1).op(op2).op(op3);
         ///
-        /// assert_eq!(matrix, mat!(3; 3; [0,3,0,1,0,0,1,0,1]))
+        /// assert_eq!(matrix, mat!(3; 3; [0,3,0,1,0,0,1,0,1]));
+        /// # Ok(())
         /// # }
         /// ```
         ///
