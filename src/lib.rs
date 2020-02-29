@@ -2,6 +2,9 @@ pub mod error;
 
 #[macro_use]
 pub mod matrix {
+    use crate::error::MatrixError;
+    type Result<T> = std::result::Result<T, MatrixError>;
+
     /// Similar to stdlib's `vec!`, creates a Matrix object without necessarily needing needing any other data structures or complex syntax.
     ///
     /// Syntax is `mat!(number_of_rows; number_of_columns; [list of values]` if you're going straight from raw data.
@@ -129,15 +132,15 @@ pub mod matrix {
         ///
         /// Takes a number of rows `r`, a number of columns `c`, and a list of `entries` for the matrix.
         /// This function can be kind of clunky due to the fact that it requires a `Vec` of `f64`; use [macro::mat] instead, as it converts from integers to floats for you.
-        pub fn create(r: usize, c: usize, entries: Vec<f64>) -> Matrix {
+        pub fn create(r: usize, c: usize, entries: Vec<f64>) -> Result<Matrix> {
             if r * c == entries.len() {
-                Matrix {
+                Ok(Matrix {
                     r,
                     c,
                     entries
-                }
+                })
             } else {
-                panic!("Number of specified rows ({:?}) and columns ({:?}) does not match with number of entries ({:?}, should be {:?})", r, c, entries.len(), r * c)
+                Err(MatrixError { m: format!("Number of specified rows ({:?}) and columns ({:?}) does not match with number of entries ({:?}, should be {:?})", r, c, entries.len(), r * c) })
             }
         }
 
@@ -154,7 +157,7 @@ pub mod matrix {
         /// assert_eq!(matrix, mat!(2; 3; [5.4,5.4,5.4,5.4,5.4,5.4]));
         /// # }
         /// ```
-        pub fn new(r: usize, c: usize, n: f64) -> Matrix {
+        pub fn new(r: usize, c: usize, n: f64) -> Result<Matrix> {
             Matrix::create(r, c, vec![n; r * c])
         }
 
@@ -171,7 +174,7 @@ pub mod matrix {
         /// assert_eq!(matrix, mat!(3; 3; [1,0,0,0,1,0,0,0,1]))
         /// # }
         /// ```
-        pub fn identity(s: usize) -> Matrix {
+        pub fn identity(s: usize) -> Result<Matrix> {
             let mut entries = vec![0.0; s * s];
             for i in 0..s {
                 entries[i * (s + 1)] = 1.0;
@@ -195,10 +198,10 @@ pub mod matrix {
         ///                              0,0,1]));
         /// # }
         /// ```
-        pub fn elementary<T: RowOperation>(s: usize, op: T) -> Matrix {
-            let mut m = Matrix::identity(s);
-            op.operate(&mut m);
-            m
+        pub fn elementary<T: RowOperation>(s: usize, op: T) -> Result<Matrix> {
+            let mut m = Matrix::identity(s)?;
+            op.operate(&mut m)?;
+            Ok(m)
         }
 
         /// Gets an entry at row `r` and column `c` from the matrix.
@@ -284,7 +287,7 @@ pub mod matrix {
         /// # }
         /// ```
         ///
-        /// ## Looping through a `Vec` of `RowOp`s
+        /// ## Looping through a `Vec<RowOp>`
         ///
         /// ```rust
         /// # use calc::{matrix::*, mat};
