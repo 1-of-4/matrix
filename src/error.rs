@@ -21,7 +21,7 @@ pub fn check_index(index: usize, limit: usize) -> Result<(), MatrixError> {
     }
     let ord = index.cmp(&limit);
     match ord {
-        Ordering::Greater => Err(MatrixError { m: format!("The given index \"{}\" is bigger than the maximum index for a matrix of this size: {}", index, limit) }),
+        Ordering::Greater => Err(MatrixError { m: format!("The given index ({}) is bigger than the maximum index for a matrix of this size ({})", index, limit) }),
         _ => Ok(())
     }
 }
